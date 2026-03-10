@@ -255,7 +255,7 @@ img{display:block;max-width:100%;}
   <!-- Top Nav -->
   <nav class="topnav safe-top">
     <span class="nav-logo">💊</span>
-    <span class="nav-title">MedBill AI <span style="font-size:10px;opacity:0.4">v5</span></span>
+    <span class="nav-title">MedBill AI <span style="font-size:10px;opacity:0.4">v6</span></span>
     <span class="nav-badge" id="nav-badge" style="display:none"></span>
   </nav>
 
@@ -329,6 +329,7 @@ let state = {
   notifPerm: Notification ? Notification.permission : 'denied',
   reminderTimers: [],
   apiKey: localStorage.getItem('gemini_api_key') || '',
+  detectedModel: localStorage.getItem('gemini_model') || '',
 };
 
 /* ══════════════════════════════════
@@ -360,7 +361,8 @@ async function compressImage(base64, mimeType) {
 async function callGemini(base64, mimeType, prompt) {
   const key = state.apiKey;
   if (!key) throw new Error('NO_KEY');
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + key;
+  const model = state.detectedModel || 'gemini-2.0-flash';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + key;
   const body = {
     contents: [{
       role: 'user',
@@ -386,7 +388,8 @@ async function callGemini(base64, mimeType, prompt) {
 async function callGeminiChat(messages, systemContext) {
   const key = state.apiKey;
   if (!key) throw new Error('NO_KEY');
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + key;
+  const model = state.detectedModel || 'gemini-2.0-flash';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + key;
   // Build contents - alternate user/model
   const contents = [];
   messages.forEach((m, i) => {
@@ -417,6 +420,10 @@ function extractJSON(raw) {
 function saveApiKey(k) {
   state.apiKey = k.trim();
   localStorage.setItem('gemini_api_key', state.apiKey);
+}
+function saveModel(m) {
+  state.detectedModel = m;
+  localStorage.setItem('gemini_model', m);
 }
 
 /* ══════════════════════════════════════════
@@ -742,7 +749,12 @@ function renderHero() {
       <input id="key-input" type="password" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--text);font-family:monospace" placeholder="AIza...">
       <button class="btn-primary" style="width:auto;padding:11px 16px;font-size:13px" onclick="applyKey()">Save</button>
     </div>
-    <div style="margin-top:8px;text-align:center"><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent);font-size:12px;text-decoration:none">→ Open Google AI Studio</a></div>
+    <div id="model-test-result" style="margin-top:8px;font-size:12px;display:none;padding:8px 12px;border-radius:8px;background:var(--card2);border:1px solid var(--border)"></div>
+    <div style="margin-top:8px;display:flex;gap:8px;justify-content:center">
+      <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent);font-size:12px;text-decoration:none">→ Open Google AI Studio</a>
+      <span style="color:var(--border)">|</span>
+      <button onclick="testAndDetectModel()" style="color:var(--accent);font-size:12px;background:none;border:none;text-decoration:underline;cursor:pointer">🔍 Test & detect model</button>
+    </div>
   </div>` : `
   <div style="background:var(--adim);border:1px solid var(--aborder);border-radius:12px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
     <span style="font-size:16px">✅</span>
@@ -958,6 +970,50 @@ function scrollChatBottom() {
 /* ══════════════════════════════════════════
    ACTIONS
 ══════════════════════════════════════════ */
+async function testAndDetectModel() {
+  const keyEl = document.getElementById('key-input');
+  const key = keyEl ? keyEl.value.trim() : state.apiKey;
+  if (!key) { alert('Paste your API key first'); return; }
+  const resEl = document.getElementById('model-test-result');
+  if (resEl) { resEl.style.display = ''; resEl.textContent = '🔄 Testing key & finding available models...'; }
+
+  const MODELS = [
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-pro',
+    'gemini-pro-vision'
+  ];
+
+  // First list available models
+  try {
+    const listRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + key);
+    const listData = await listRes.json();
+    if (listData.error) {
+      if (resEl) resEl.textContent = '❌ Key error: ' + listData.error.message;
+      return;
+    }
+    const available = (listData.models || [])
+      .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map(m => m.name.replace('models/', ''));
+    if (resEl) resEl.textContent = '✅ Available models: ' + (available.join(', ') || 'none found');
+
+    // Auto-pick best model and save
+    const preferred = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro-vision'];
+    for (const pref of preferred) {
+      if (available.includes(pref)) {
+        state.detectedModel = pref;
+        saveModel(pref);
+        if (resEl) resEl.textContent += ' | ✅ Auto-selected: ' + pref + ' (saved)';
+        break;
+      }
+    }
+  } catch(e) {
+    if (resEl) resEl.textContent = '❌ ' + e.message;
+  }
+}
+
 function applyKey() {
   const el = document.getElementById('key-input');
   const k = el ? el.value.trim() : '';
