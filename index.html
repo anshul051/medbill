@@ -360,7 +360,7 @@ async function compressImage(base64, mimeType) {
 async function callGemini(base64, mimeType, prompt) {
   const key = state.apiKey;
   if (!key) throw new Error('NO_KEY');
-  const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=' + key;
+  const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=' + key;
   const body = {
     contents: [{
       role: 'user',
@@ -386,7 +386,7 @@ async function callGemini(base64, mimeType, prompt) {
 async function callGeminiChat(messages, systemContext) {
   const key = state.apiKey;
   if (!key) throw new Error('NO_KEY');
-  const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=' + key;
+  const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=' + key;
   // Build contents - alternate user/model
   const contents = [];
   messages.forEach((m, i) => {
@@ -571,12 +571,10 @@ Rules:
   } catch (e) {
     console.error('Analyze error:', e);
     renderAnalyzeTab();
-    let msg;
-    if (e.message === 'NO_KEY') msg = 'No API key. Please enter your Gemini key first.';
-    else if (e.message.toLowerCase().includes('api key') || e.message.includes('API_KEY')) msg = 'Invalid API key. Check your Gemini key at aistudio.google.com';
-    else if (e.message.toLowerCase().includes('quota') || e.message.includes('429')) msg = 'Quota exceeded. Wait a minute and try again.';
-    else if (e.message.toLowerCase().includes('network') || e.message.includes('fetch')) msg = 'Network error. Check your internet connection.';
-    else msg = 'Error: ' + e.message;
+    // Show raw error so user sees exactly what Gemini returns
+    const msg = e.message === 'NO_KEY'
+      ? 'No API key set. Please enter your Gemini key.'
+      : e.message;
     setTimeout(() => showError('analyze', msg), 50);
   }
 }
