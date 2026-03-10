@@ -255,7 +255,7 @@ img{display:block;max-width:100%;}
   <!-- Top Nav -->
   <nav class="topnav safe-top">
     <span class="nav-logo">💊</span>
-    <span class="nav-title">MedBill AI <span style="font-size:10px;opacity:0.4">v4</span></span>
+    <span class="nav-title">MedBill AI <span style="font-size:10px;opacity:0.4">v5</span></span>
     <span class="nav-badge" id="nav-badge" style="display:none"></span>
   </nav>
 
@@ -360,7 +360,7 @@ async function compressImage(base64, mimeType) {
 async function callGemini(base64, mimeType, prompt) {
   const key = state.apiKey;
   if (!key) throw new Error('NO_KEY');
-  const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=' + key;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + key;
   const body = {
     contents: [{
       role: 'user',
@@ -386,7 +386,7 @@ async function callGemini(base64, mimeType, prompt) {
 async function callGeminiChat(messages, systemContext) {
   const key = state.apiKey;
   if (!key) throw new Error('NO_KEY');
-  const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=' + key;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + key;
   // Build contents - alternate user/model
   const contents = [];
   messages.forEach((m, i) => {
